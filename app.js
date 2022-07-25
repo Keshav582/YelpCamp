@@ -3,12 +3,9 @@ const path = require('path');
 const mongoose = require('mongoose');
 const methodOverride = require('method-override');
 const ejsMate = require('ejs-mate');
-const { reviewSchema } = require('./schemas');
-const Campground = require('./models/campground');
-const Review = require('./models/review');
-const catchAsync = require('./utils/catchAsync');
 const ExpressError = require('./utils/ExpressError');
 const campgrounds = require('./routes/campgrounds');
+const reviews = require('./routes/reviews');
 require('dotenv').config();
 const app = express();
 
@@ -29,37 +26,12 @@ const connectDB = async () => {
 };
 connectDB();
 
-const validateReview = (req, res, next) => {
-	const { error } = reviewSchema.validate(req.body);
-	if (error) {
-		const msg = error.details.map(el => el.message).join(',');
-		throw new ExpressError(msg, 400);
-	} else {
-		next();
-	}
-};
-
 app.use('/campgrounds', campgrounds);
+app.use('/campgrounds/:id/reviews', reviews);
 
 app.get('/', (req, res) => {
 	res.render('home');
 });
-
-app.post('/campgrounds/:id/reviews', validateReview, catchAsync(async (req, res) => {
-	const campground = await Campground.findById(req.params.id);
-	const review = new Review(req.body.review);
-	campground.reviews.push(review);
-	await review.save();
-	await campground.save();
-	res.redirect(`/campgrounds/${campground._id}`);
-}));
-
-app.delete('/campgrounds/:campgroundID/reviews/:reviewID', catchAsync(async (req, res) => {
-	const { campgroundID, reviewID } = req.params;
-	await Campground.findByIdAndUpdate(campgroundID, { $pull: { reviews: reviewID } });
-	await Review.findByIdAndDelete(reviewID);
-	res.redirect(`/campgrounds/${campgroundID}`);
-}));
 
 app.all('*', (req, res, next) => {
 	next(new ExpressError('Page not found', 404));
