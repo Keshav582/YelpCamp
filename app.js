@@ -3,10 +3,15 @@ const path = require('path');
 const mongoose = require('mongoose');
 const methodOverride = require('method-override');
 const ejsMate = require('ejs-mate');
+const session = require('express-session');
+const flash = require('connect-flash');
+require('dotenv').config();
+
 const ExpressError = require('./utils/ExpressError');
+
 const campgrounds = require('./routes/campgrounds');
 const reviews = require('./routes/reviews');
-require('dotenv').config();
+
 const app = express();
 
 app.engine('ejs', ejsMate);
@@ -16,6 +21,26 @@ app.set('views', path.join(__dirname, 'views'));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(methodOverride('_method'));
+
+const sessionConfig = {
+	secret: process.env.SESSION_SECRET,
+	resave: false,
+	saveUninitialized: true,
+	cookie: {
+		httpOnly: true,
+		expires: Date.now() + 1000*60*60*24*7,
+		maxAge: 1000*60*60*24*7
+	}
+}
+app.use(session(sessionConfig));
+app.use(flash());
+
+app.use((req, res, next) => {
+	res.locals.success = req.flash('success'); // if there is a flash message on request, it will now be accessible
+	// to all templates without having to pass as parameter
+	res.locals.error = req.flash('error');
+	next();
+})
 
 const connectDB = async () => {
 	try {
